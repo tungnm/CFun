@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IPCClient", "IPCClient\IPCC
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AudioCapture", "AudioCapture\AudioCapture.vcxproj", "{36AA5FF6-87A8-40F9-96FD-263617CBB694}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MicrophoneCapture", "MicrophoneCapture\MicrophoneCapture.vcxproj", "{433E0CC2-F573-4C0E-BDBB-1DA7A34798F7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -31,6 +33,12 @@ Global
 		{36AA5FF6-87A8-40F9-96FD-263617CBB694}.Debug|Win32.Build.0 = Debug|Win32
 		{36AA5FF6-87A8-40F9-96FD-263617CBB694}.Release|Win32.ActiveCfg = Release|Win32
 		{36AA5FF6-87A8-40F9-96FD-263617CBB694}.Release|Win32.Build.0 = Release|Win32
+		{433E0CC2-F573-4C0E-BDBB-1DA7A34798F7}.Debug|Win32.ActiveCfg = Debug|Win32
+		{433E0CC2-F573-4C0E-BDBB-1DA7A34798F7}.Debug|Win32.Build.0 = Debug|Win32
+		{433E0CC2-F573-4C0E-BDBB-1DA7A34798F7}.Debug|Win32.Deploy.0 = Debug|Win32
+		{433E0CC2-F573-4C0E-BDBB-1DA7A34798F7}.Release|Win32.ActiveCfg = Release|Win32
+		{433E0CC2-F573-4C0E-BDBB-1DA7A34798F7}.Release|Win32.Build.0 = Release|Win32
+		{433E0CC2-F573-4C0E-BDBB-1DA7A34798F7}.Release|Win32.Deploy.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

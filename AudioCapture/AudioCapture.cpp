@@ -27,8 +27,77 @@ void SetCtrlHandler(bool install);
 
 BOOLEAN quit = false;
 
-int _tmain(int argc, _TCHAR* argv[])
+float absFloat(float f)
 {
+    return (f > 0) ? f : f*(-1.0f);
+}
+
+
+//note about size in byte(unsigned char) of audio frame/ packet...
+//read: https://msdn.microsoft.com/en-us/library/windows/desktop/dd370858(v=vs.85).aspx
+/*
+The length of a data packet is expressed as the number of audio frames in the packet. 
+The size of an audio frame is specified by the nBlockAlign member of the WAVEFORMATEX
+(or WAVEFORMATEXTENSIBLE) structure that the client obtains by calling the 
+IAudioClient::GetMixFormat method. The size in bytes of an audio frame equals 
+the number of channels in the stream multiplied by the sample size per channel. 
+For example, the frame size is four bytes for a stereo (2-channel) stream with 
+16-bit samples. A packet always contains an integral number of audio frames.
+
+also read: https://msdn.microsoft.com/en-us/library/windows/desktop/dd390970(v=vs.85).aspx
+
+*/
+bool convertFloat32ToInt16(BYTE * pData, int totalBytes)
+{
+
+    float sum = 0;
+    //the total number of bytes of the 32-bit-float audio buffer( This is
+    //Windows standard)
+    int floatSize = sizeof(float);
+
+    byte* current = pData;
+   
+    //convert 32 bit float to 16 bit short
+    for (int i=0; i < totalBytes / floatSize ; i++)
+    {
+        float x = (*(float*)(current));
+        sum += absFloat(x);
+        x*= 32767; //2^15 - 1
+       
+        current+=floatSize;
+    }
+    //detect silent buffer
+    //there is also an event_based mode for loopback capture but quick research
+    //suggests that it is buggy, need more investigation.
+    if(absFloat(sum) < 0.1f)
+        return false;
+    else
+        return true;
+}
+
+int main(int argc, char* argv[])
+{
+    if (argc < 2)
+    {
+        printf("Usage: AudioCapture.exe [mic|loopback]");
+        return -1;
+    }
+
+    //this flag passed from the command line is for switching between capturing 
+    //from the real microphone or with loopback capture on a speaker.
+    bool isMicrophoneCapture;
+
+    if (strcmp(argv[1], "mic") == 0)
+    {
+        isMicrophoneCapture = true;
+        printf("Use microphone capture \n");
+    }
+    else if (strcmp(argv[1], "loopback") == 0)
+    {
+        isMicrophoneCapture = false;
+        printf("Use loopback capture \n");
+    }
+    
     UINT32 bufferFrameCount = 0;
     DWORD flags = 0;
     REFERENCE_TIME hnsRequestedDuration = REFTIMES_PER_SEC;
@@ -51,8 +120,15 @@ int _tmain(int argc, _TCHAR* argv[])
     
     hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&pEnumerator);
     EXIT_ON_ERROR(hr, "CoCreateInstance failed\n");
-
-    hr = pEnumerator->GetDefaultAudioEndpoint(eRender, eConsole, &pDevice);
+    if (isMicrophoneCapture)
+    {
+        hr = pEnumerator->GetDefaultAudioEndpoint(eCapture, eConsole, &pDevice);
+    }
+    else
+    {
+        hr = pEnumerator->GetDefaultAudioEndpoint(eRender, eConsole, &pDevice);
+    }
+    
     EXIT_ON_ERROR(hr, "Failed to get default endpoint\n");
 
     //initailize a capture stream in loopback mode on the rendering endpoint device
@@ -63,7 +139,15 @@ int _tmain(int argc, _TCHAR* argv[])
     EXIT_ON_ERROR(hr, "Failed to get audio format\n");
     PrintWaveFormat(pwfx);
 
-    hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, hnsRequestedDuration, 0, pwfx, NULL);
+    if (isMicrophoneCapture)
+    {
+        hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, hnsRequestedDuration, 0, pwfx, NULL);
+    }
+    else
+    {
+        hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, hnsRequestedDuration, 0, pwfx, NULL);
+    }
+    
     EXIT_ON_ERROR(hr, "Failed to initialize audio client\n");
 
     // Get the size of the allocated buffer.
@@ -78,6 +162,14 @@ int _tmain(int argc, _TCHAR* argv[])
     EXIT_ON_ERROR(hr, "Failed to start audio client\n");
 
     while (quit == false) {
+        
+        if (isMicrophoneCapture)
+        {
+            // Sleep for half the buffer duration.
+            //Sleep(hnsActualDuration/REFTIMES_PER_MILLISEC/2);
+        }
+
+
         hr = pCaptureClient->GetNextPacketSize(&packetLength);
         EXIT_ON_ERROR(hr, "Failed to get packet size\n");
 
@@ -90,13 +182,20 @@ int _tmain(int argc, _TCHAR* argv[])
                 pData = NULL;
             }
 
-            PrintProgress(numFramesAvailable, flags);
+            int totalByte = pwfx->nBlockAlign * numFramesAvailable;
+            
+            //detect if there is no sound playing
+            if (!(packetLength != 0 && ((flags & AUDCLNT_BUFFERFLAGS_SILENT) == 0) 
+                && convertFloat32ToInt16(pData, totalByte) == true))
+            {
+              
+            }
+            else
+            {
 
-            // Pass the capture data to OPUS encoder.
-            // Note that pData is set to NULL for silence.
-            //hr = CopyData(pData, numFramesAvailable);
-            //EXIT_ON_ERROR(hr);
-
+                PrintProgress(numFramesAvailable, flags);
+            }
+           
             hr = pCaptureClient->ReleaseBuffer(numFramesAvailable);
             EXIT_ON_ERROR(hr, "Failed to release buffer\n");
         }
@@ -172,7 +271,7 @@ void PrintProgress(UINT32 numFrames, DWORD flags)
     {
         //_tprintf(_T("+%d "), numFrames);
         _tprintf(_T("+"), numFrames);
-
+       
     }
 }
 #endif
